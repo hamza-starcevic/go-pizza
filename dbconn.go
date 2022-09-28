@@ -1,29 +1,20 @@
 package main
 
-//Connect to the postgres database
 import (
-	"database/sql"
-	"fmt"
+	"context"
 	"log"
-	"os"
-	"time"
 
-	_ "github.com/lib/pq"
+	"cloud.google.com/go/firestore"
 )
 
-var db *sql.DB
+//Connect to firestore database
 
-func Init() {
-	var err error
-	db, err = sql.Open("postgres", os.Getenv("DATABASE_URL"))
+// ! Establish a connection to the firestore database
+func Init() (*firestore.Client, context.Context) {
+	ctx := context.Background()
+	client, err := firestore.NewClient(ctx, "pizza-847ab")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to create a firestore client: %v", err)
 	}
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(25)
-	db.SetConnMaxLifetime(5 * time.Minute)
-	if err = db.Ping(); err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Successfully connected!")
+	return client, ctx
 }
