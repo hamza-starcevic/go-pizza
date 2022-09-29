@@ -40,6 +40,14 @@
               <label for="Picture" class="form-label">Picture link</label>
               <input type="text" class="form-control" name="Picture" id="Picture" aria-describedby="helpId" placeholder="Picture link">
             </div>
+            <div class="mb-3">
+              <label for="Ingredients" class="form-label">Ingredients separated by comma</label>
+              <input type="text" class="form-control" name="Ingredients" id="Ingredients" aria-describedby="helpId" placeholder="Ingredients">
+            </div>
+            <div class="mb-3">
+              <label for="Rating" class="form-label">Rating</label>
+              <input type="number" class="form-control" name="Rating" id="Rating" aria-describedby="helpId" placeholder="Rating">
+            </div>
             <a name="Submit" id="Submit" class="btn btn-primary" role="button">Submit</a>
         </form>
     </div>
@@ -62,15 +70,18 @@
             Name: document.getElementById("Name").value,
             Category: document.getElementById("Category").value,
             Description: document.getElementById("Description").value,
-            Price: document.getElementById("Price").value,
-            Picture: document.getElementById("Picture").value
+            Price: parseFloat(document.getElementById("Price").value),
+            Picture: document.getElementById("Picture").value,
+            Ingredients: document.getElementById("Ingredients").value,
+            Rating: document.getElementById("Rating").value
         }      
         data.Price = Math.round(data.Price * 100) / 100;
-        console.log(typeof data.Price) 
+        data.Rating = Math.round(data.Rating * 100) / 100;
+        console.log(typeof data.Rating) 
         jsonData = JSON.stringify(data);
 
 
-        fetch("http://localhost:8060/pizzaAdd", {
+        fetch("http://localhost:8070/pizzaAdd", {
             method: "POST",
             body: jsonData
         })

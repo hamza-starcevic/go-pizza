@@ -2,158 +2,157 @@ package main
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
-	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
-	"google.golang.org/api/iterator"
 )
 
-func fetchPizza(w http.ResponseWriter, r *http.Request) {
-	//fetch all pizzas to pizzaArray from firestore database
-	client, ctx := Init()
-	pizzaArray := []Pizza{}
-	//Get a document with the query
-	iter := client.Collection("pizzas").Documents(ctx)
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			log.Fatalf("Failed to iterate: %v", err)
-		}
-		var pizza Pizza
-		doc.DataTo(&pizza)
-		pizzaArray = append(pizzaArray, pizza)
-	}
-	// Converting array to formatted JSON
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(pizzaArray)
+type successJson struct {
+	Success bool   `json:"success"`
+	ID      string `json:"id"`
 }
 
-// get handler that takes a paramater of category and returns the pizza of that category
-func fetchPizzaByCategory(w http.ResponseWriter, r *http.Request) {
-	// Fetching category from URL
-	vars := mux.Vars(r)
-	category := vars["category"]
-
-	client, ctx := Init()
-	pizzaArray := []Pizza{}
-	//Get a document with the query
-	iter := client.Collection("pizzas").Where("Category", "==", category).Documents(ctx)
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			log.Fatalf("Failed to iterate: %v", err)
-		}
-		var pizza Pizza
-		doc.DataTo(&pizza)
-		pizzaArray = append(pizzaArray, pizza)
+func fetchPizza(w http.ResponseWriter, r *http.Request) {
+	db := Connect()
+	var pizzaArr []Pizza
+	result, err := db.Query("SELECT * FROM Pizza")
+	if err != nil {
+		panic(err.Error())
 	}
-	// Converting array to formatted JSON
+	defer result.Close()
+
+	for result.Next() {
+		var pizza Pizza
+		err := result.Scan(&pizza.ID, &pizza.Picture, &pizza.Name, &pizza.Price, &pizza.Description, &pizza.Category, &pizza.Ingredients, &pizza.Rating, &pizza.DateAdded)
+		if err != nil {
+			panic(err.Error())
+		}
+		pizzaArr = append(pizzaArr, pizza)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(pizzaArray)
+	json.NewEncoder(w).Encode(pizzaArr)
 }
 
 func fetchPizzaById(w http.ResponseWriter, r *http.Request) {
-	//fetch pizza from firestore database by id
-	client, ctx := Init()
+	//get pizza by id from db
+	db := Connect()
+	mux.Vars(r)
 
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	//Get a document with the query
-	doc := client.Collection("pizzas").Where("PID", "==", id).Documents(ctx)
-	//Get the document
-	docSnap, err := doc.Next()
-	if err != nil {
-		log.Fatalf("Failed to get document: %v", err)
-	}
-	//Get the data from the document
 	var pizza Pizza
-	docSnap.DataTo(&pizza)
-	// Converting array to formatted JSON
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(pizza)
-
-}
-
-// get handler that takes a search term and returns the pizza that matches the search term
-func searchPizza(w http.ResponseWriter, r *http.Request) {
-	// Fetching search term from URL
-	vars := mux.Vars(r)
-	searchTerm := vars["searchTerm"]
-	//check is search term is empty
-	if searchTerm == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(pizzaArr)
-		return
+	result, err := db.Query("SELECT * FROM Pizza WHERE ID = ?", mux.Vars(r)["id"])
+	if err != nil {
+		panic(err.Error())
 	}
-	print(searchTerm)
-	sortedPizza := []Pizza{}
-	// Filtering pizza by search term
-	client, ctx := Init()
-	iter := client.Collection("pizzas").Where("Name", "==", searchTerm).Documents(ctx)
-	for {
-		doc, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
+	defer result.Close()
+
+	for result.Next() {
+		err := result.Scan(&pizza.ID, &pizza.Picture, &pizza.Name, &pizza.Price, &pizza.Description, &pizza.Category, &pizza.Ingredients, &pizza.Rating, &pizza.DateAdded)
 		if err != nil {
-			log.Fatalf("Failed to iterate: %v", err)
+			panic(err.Error())
 		}
-		var pizza Pizza
-		doc.DataTo(&pizza)
-		sortedPizza = append(sortedPizza, pizza)
 	}
-	// Converting array to formatted JSON
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(sortedPizza)
+	json.NewEncoder(w).Encode(pizza)
 }
 
-// post handler that takes a pizza and adds it to the database
-func addPizza(w http.ResponseWriter, r *http.Request) {
-	print("hit")
-
-	//Count the number of pizzas in the database
-	//Get a document with the query
-	client, ctx := Init()
-
-	doc, err := client.Collection("pizzas").Documents(ctx).GetAll()
-	//get number of documents
-	numOfPizzas := len(doc)
-	if err != nil {
-		log.Fatalf("Failed to get document: %v", err)
-	}
-	print(numOfPizzas)
-
-	//fetch json from post and declare variables with their values
-
+func createPizza(w http.ResponseWriter, r *http.Request) {
+	//create pizza in db
+	db := Connect()
 	var pizza Pizza
-	_ = json.NewDecoder(r.Body).Decode(&pizza)
-	//add pizza to firestore database
-	pizza.PID = strconv.Itoa(numOfPizzas + 1)
-	_, _, err = client.Collection("pizzas").Add(ctx, pizza)
-	print(pizza.PID)
-
+	json.NewDecoder(r.Body).Decode(&pizza)
+	pizza.DateAdded = time.Now().Format("2006-01-02 15:04:05")
+	print(pizza.Rating)
+	result, err := db.Exec("INSERT INTO Pizza (Picture, Name, Price, Description, Category, Ingredients, Rating, Date_added) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", pizza.Picture, pizza.Name, pizza.Price, pizza.Description, pizza.Category, pizza.Ingredients, pizza.Rating, pizza.DateAdded)
 	if err != nil {
-		log.Fatalf("Failed to add pizza to firestore: %v", err)
+		panic(err.Error())
 	}
-	//add pizza to pizzaArr
-	pizzaArr = append(pizzaArr, pizza)
-	// Converting array to formatted JSON
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(pizzaArr)
+	ID, _ := result.LastInsertId()
 
+	pizza.ID = int(ID)
+
+	print(pizza.ID)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pizza)
+}
+
+func fetchPizzaByCategory(w http.ResponseWriter, r *http.Request) {
+	//get pizza by category from db
+	db := Connect()
+	mux.Vars(r)
+
+	var pizzaArr []Pizza
+	result, err := db.Query("SELECT * FROM Pizza WHERE Category = ?", mux.Vars(r)["category"])
+	if err != nil {
+		panic(err.Error())
+	}
+	defer result.Close()
+
+	for result.Next() {
+		var pizza Pizza
+		err := result.Scan(&pizza.ID, &pizza.Picture, &pizza.Name, &pizza.Price, &pizza.Description, &pizza.Category, &pizza.Ingredients, &pizza.Rating, &pizza.DateAdded)
+		if err != nil {
+			panic(err.Error())
+		}
+		pizzaArr = append(pizzaArr, pizza)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pizzaArr)
+}
+
+func searchPizza(w http.ResponseWriter, r *http.Request) {
+	//search pizza by name from db
+	db := Connect()
+	mux.Vars(r)
+	name := mux.Vars(r)["name"]
+	print(name)
+	var pizzaArr []Pizza
+	result, err := db.Query("SELECT * FROM Pizza WHERE Name LIKE ?", "%"+mux.Vars(r)["name"]+"%")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer result.Close()
+
+	for result.Next() {
+		var pizza Pizza
+		err := result.Scan(&pizza.ID, &pizza.Picture, &pizza.Name, &pizza.Price, &pizza.Description, &pizza.Category, &pizza.Ingredients, &pizza.Rating, &pizza.DateAdded)
+		if err != nil {
+			panic(err.Error())
+		}
+		pizzaArr = append(pizzaArr, pizza)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pizzaArr)
+}
+
+func deletePizzaById(w http.ResponseWriter, r *http.Request) {
+	//delete pizza by id from db
+	db := Connect()
+	mux.Vars(r)
+
+	result, err := db.Exec("DELETE FROM Pizza WHERE ID = ?", mux.Vars(r)["id"])
+	if err != nil {
+		panic(err.Error())
+	}
+	fmt.Printf("result: %v\n", result)
+	effect, _ := result.RowsAffected()
+
+	w.Header().Set("Content-Type", "application/json")
+	if effect == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		var fail = successJson{Success: false, ID: mux.Vars(r)["id"]}
+		json.NewEncoder(w).Encode(fail)
+
+	} else {
+		w.WriteHeader(http.StatusOK)
+		var success = successJson{Success: true, ID: mux.Vars(r)["id"]}
+		json.NewEncoder(w).Encode(success)
+	}
+
+	print(result)
 }
