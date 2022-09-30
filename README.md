@@ -9,7 +9,7 @@
 # Installation for Go
 ## Go to this website to download the installer or source if you are on a Linux distro
 > Download link : https://go.dev/doc/install
-#### Make sure to follow the instructions thorougly
+#### Make sure to follow the instructions thoroughly
 
 # Running the app
 - Compile the app by going into the terminal and exectuing these commands
