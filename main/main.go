@@ -5,7 +5,9 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -41,14 +43,15 @@ func main() {
 	r.HandleFunc("/pizza/{id}/{column}/{value}", updatePizzaRatingById).Methods("PUT")
 
 	//* A put method for pizza update is registered
-	r.HandleFunc("/pizza", updatePizzaById).Methods("PUT")
+	r.HandleFunc("/pizza/{id}", updatePizzaById).Methods("PUT")
 
 	//* A get method for serving the html file is registered
 	r.HandleFunc("/", serveHTMLfunc)
 
 	//* The server is started on the specified port
 	log.Printf("Server started on port %s", port)
-	http.ListenAndServe(port, r)
+	logMiddleware := handlers.LoggingHandler(os.Stdout, r)
+	http.ListenAndServe(port, logMiddleware)
 }
 
 // * Short handler function for serving the html to a minimal pizza adding site
