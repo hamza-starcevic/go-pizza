@@ -25,7 +25,7 @@ func Connect() *sql.DB {
 	//* The database connection is initialized
 	//! CRUCIAL: The connection string is unique to your database
 	//! exapmple dns connection string: "username:password@tcp(address:port)/databaseName"
-	db, err := sql.Open("mysql", "hstarcevic:kenansin@tcp(localhost)/pizzaDB")
+	db, err := sql.Open("mysql", "connectionString")
 
 	if err != nil {
 		panic(err.Error())
